@@ -47,16 +47,19 @@ def main():
 
     ## Have an oddstable filled by iterating over all the matches in the league
     odds_table = pd.DataFrame(columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
+    match_table = pd.DataFrame(columns = ['Result', 'Firsthalf', 'Secondhalf', 'Hometeam', 'Awayteam', 'Matchdate', 'Matchtime'])
 
     for match_url in match_urls:
-        odds_table = odds_from_match(match_url, driver, odds_table)
+        driver.get(match_url)
+        odds_table = odds_from_match(driver, odds_table)
+        match_table = matchdata_from_match(driver, match_table)
 
     odds_table.to_csv("oddstable.csv", index = False)
+    match_table.to_csv("matchtable.csv", index = False)
 
 ## Function that takes as input a match and file and adds the match data to the file
-def odds_from_match(match, driver, oddsdataframe):
-    ## Open the match and press the 'show more bookmakers' button if necessary
-    driver.get(match)
+def odds_from_match(driver, oddsdataframe):
+
     try:
         driver.find_element(By.CSS_SELECTOR, 'a[onclick^="page.showHiddenProviderTable"]').click()
     except:
@@ -98,7 +101,49 @@ def odds_from_match(match, driver, oddsdataframe):
     newdata = pd.DataFrame(np.column_stack([Bookmakers, Home, Away, Draw, Payout]),
                columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
     oddsdataframe = pd.concat([oddsdataframe, newdata])
+
     return oddsdataframe
+
+def matchdata_from_match(driver, matchdataframe):
+    ## Get the match result if the match has been played
+    try:
+        result = driver.find_element(By.CLASS_NAME, 'result').text
+        firsthalf = result.split('t ')[1].split(' (')
+        finalresult = firsthalf[0]
+        secondhalf = firsthalf[1].split(', ')
+        firsthalf = secondhalf[0]
+        secondhalf = secondhalf[1].split(')')[0]
+    except:
+        finalresult = None
+        firsthalf = None
+        secondhalf = None
+
+
+    ## Get the match teams
+    teams = driver.find_element(By.ID, "breadcrumb").text.split("»")
+    teams = teams[len(teams) - 1]
+    hometeam = teams.split("-")[0].strip()
+    awayteam = teams.split("-")[1].strip()
+
+    ## Get the match date
+    dates = driver.find_element(By.CSS_SELECTOR, '[class^="date datet"]').text
+    matchdate = dates.split(", ")
+    matchtime = matchdate[2]
+    matchdate = matchdate[1]
+
+
+    newdata = pd.DataFrame({
+        'Result' : [finalresult],
+        'Firsthalf': [firsthalf],
+        'Secondhalf': [secondhalf],
+        'Hometeam': [hometeam],
+        'Awayteam': [awayteam],
+        'Matchdate': [matchdate],
+        'Matchtime': [matchtime]
+    })
+
+    matchdataframe = pd.concat([matchdataframe, newdata])
+    return matchdataframe
 
 if __name__ == '__main__':
     main()
