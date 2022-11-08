@@ -15,8 +15,8 @@ def main():
 
     ## TODO: ability to input your own match
     ## TODO: ability to iterate over matches in a league
-    ## Match info
-    match_url = "https://www.oddsportal.com/soccer/spain/laliga/rayo-vallecano-real-madrid-KAOyH3RR/"
+    league_url = "https://www.oddsportal.com/soccer/england/premier-league/"
+    href_url = "/soccer/england/premier-league/"
 
     #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
     driver = webdriver.Chrome()
@@ -31,13 +31,31 @@ def main():
     login2.send_keys(pw)
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
 
+    ## Find all the match urls using the league url
+    driver.get(league_url)
+    results = driver.find_elements(By.CSS_SELECTOR, f'a[href^="{href_url}"]')
 
+    match_urls = []
+
+    for result in results:
+        href = result.get_attribute('href')
+        if (href != "https://www.oddsportal.com/soccer/england/premier-league/" and
+        href != "https://www.oddsportal.com/soccer/england/premier-league/outrights/" and
+        href != "https://www.oddsportal.com/soccer/england/premier-league/results/" and
+        href != "https://www.oddsportal.com/soccer/england/premier-league/standings/"):
+            match_urls.append(href)
+
+    for match_url in match_urls:
+          odds_from_match(match_url, driver)
+
+## Function that takes as input a match and file and adds the match data to the file
+def odds_from_match(match, driver):
     ## Open the match and press the 'show more bookmakers' button if necessary
-    driver.get(match_url)
+    driver.get(match)
     try:
         driver.find_element(By.CSS_SELECTOR, 'a[onclick^="page.showHiddenProviderTable"]').click()
     except:
-        print("no need to press more bookmakers button")
+        print("")
 
     ## Extract the odds into a data frame
     odds_table = driver.find_element(By.CSS_SELECTOR, 'table[class="table-main detail-odds sortable"]')
@@ -75,7 +93,6 @@ def main():
     odds_table = pd.DataFrame(np.column_stack([Bookmakers, Home, Away, Draw, Payout]),
                               columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
     odds_table.to_csv("oddstable.csv")
-
 
 if __name__ == '__main__':
     main()
