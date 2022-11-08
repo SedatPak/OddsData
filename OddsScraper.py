@@ -24,7 +24,7 @@ def main():
 
     ## Login
     driver.get(login_url)
-    driver.implicitly_wait(5)
+    driver.implicitly_wait(0.5)
     login1 = driver.find_element(By.ID, "login-username1")
     login2 = driver.find_element(By.ID, "login-password1")
     login1.send_keys(un)
@@ -45,17 +45,22 @@ def main():
         href != "https://www.oddsportal.com/soccer/england/premier-league/standings/"):
             match_urls.append(href)
 
+    ## Have an oddstable filled by iterating over all the matches in the league
+    odds_table = pd.DataFrame(columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
+
     for match_url in match_urls:
-          odds_from_match(match_url, driver)
+        odds_table = odds_from_match(match_url, driver, odds_table)
+
+    odds_table.to_csv("oddstable.csv", index = False)
 
 ## Function that takes as input a match and file and adds the match data to the file
-def odds_from_match(match, driver):
+def odds_from_match(match, driver, oddsdataframe):
     ## Open the match and press the 'show more bookmakers' button if necessary
     driver.get(match)
     try:
         driver.find_element(By.CSS_SELECTOR, 'a[onclick^="page.showHiddenProviderTable"]').click()
     except:
-        print("")
+        pass
 
     ## Extract the odds into a data frame
     odds_table = driver.find_element(By.CSS_SELECTOR, 'table[class="table-main detail-odds sortable"]')
@@ -90,9 +95,10 @@ def odds_from_match(match, driver):
     Payout = np.transpose(df.iloc[:, 4::5])
 
     ## Combine into one data frame and save the df
-    odds_table = pd.DataFrame(np.column_stack([Bookmakers, Home, Away, Draw, Payout]),
-                              columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
-    odds_table.to_csv("oddstable.csv")
+    newdata = pd.DataFrame(np.column_stack([Bookmakers, Home, Away, Draw, Payout]),
+               columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
+    oddsdataframe = pd.concat([oddsdataframe, newdata])
+    return oddsdataframe
 
 if __name__ == '__main__':
     main()
