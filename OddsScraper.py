@@ -46,19 +46,19 @@ def main():
             match_urls.append(href)
 
     ## Have an oddstable filled by iterating over all the matches in the league
-    odds_table = pd.DataFrame(columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
-    match_table = pd.DataFrame(columns = ['Result', 'Firsthalf', 'Secondhalf', 'Hometeam', 'Awayteam', 'Matchdate', 'Matchtime'])
+    odds_table = pd.DataFrame(columns=['Match_id', 'Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
+    match_table = pd.DataFrame(columns = ['Match_id', 'Result', 'Firsthalf', 'Secondhalf', 'Hometeam', 'Awayteam', 'Matchdate', 'Matchtime'])
 
-    for match_url in match_urls:
+    for i, match_url in enumerate(match_urls):
         driver.get(match_url)
-        odds_table = odds_from_match(driver, odds_table)
-        match_table = matchdata_from_match(driver, match_table)
+        odds_table = odds_from_match(driver, odds_table, i)
+        match_table = matchdata_from_match(driver, match_table, i)
 
     odds_table.to_csv("oddstable.csv", index = False)
     match_table.to_csv("matchtable.csv", index = False)
 
 ## Function that takes as input a match and file and adds the match data to the file
-def odds_from_match(driver, oddsdataframe):
+def odds_from_match(driver, oddsdataframe, match_id):
 
     try:
         driver.find_element(By.CSS_SELECTOR, 'a[onclick^="page.showHiddenProviderTable"]').click()
@@ -96,15 +96,16 @@ def odds_from_match(driver, oddsdataframe):
     Away = np.transpose(df.iloc[:, 2::5])
     Draw = np.transpose(df.iloc[:, 3::5])
     Payout = np.transpose(df.iloc[:, 4::5])
+    Match_ids = np.full((len(Payout), 1), match_id)
 
     ## Combine into one data frame and save the df
-    newdata = pd.DataFrame(np.column_stack([Bookmakers, Home, Away, Draw, Payout]),
-               columns=['Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
+    newdata = pd.DataFrame(np.column_stack([Match_ids, Bookmakers, Home, Away, Draw, Payout]),
+               columns=['Match_id', 'Bookmakers', 'Home', 'Away', 'Draw', 'Payout'])
     oddsdataframe = pd.concat([oddsdataframe, newdata])
 
     return oddsdataframe
 
-def matchdata_from_match(driver, matchdataframe):
+def matchdata_from_match(driver, matchdataframe, match_id):
     ## Get the match result if the match has been played
     try:
         result = driver.find_element(By.CLASS_NAME, 'result').text
@@ -133,6 +134,7 @@ def matchdata_from_match(driver, matchdataframe):
 
 
     newdata = pd.DataFrame({
+        'Match_id': [match_id],
         'Result' : [finalresult],
         'Firsthalf': [firsthalf],
         'Secondhalf': [secondhalf],
